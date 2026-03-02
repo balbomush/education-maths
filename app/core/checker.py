@@ -78,6 +78,29 @@ def check_multiple_choice(user_indices: Iterable[int], correct_indices: Iterable
 def check_task_answer(task: Task, user_input) -> Tuple[bool, str]:
     """Проверяет ответ на задачу, исходя из её типа."""
     if task.answer_type == "numeric":
+        text = str(task.text)
+        # Для задач на сокращение дроби требуем несократимый вид
+        if "Сократи дробь" in text:
+            raw_input = str(user_input).strip()
+            try:
+                user_frac = _parse_mixed_fraction(raw_input)
+                correct_frac = _parse_mixed_fraction(str(task.correct_answer))
+            except Exception:
+                return False, "Ответ должен быть дробью вида a/b или смешанным числом."
+
+            if user_frac != correct_frac:
+                return False, "Неверно, попробуй ещё раз."
+
+            # если введена простая дробь a/b, проверяем, что она несократима
+            m = re.fullmatch(r"(-?\d+)\s*/\s*(-?\d+)", raw_input)
+            if m:
+                num = int(m.group(1))
+                den = int(m.group(2))
+                if math.gcd(num, den) != 1:
+                    return False, "Нужно сократить дробь до несократимого вида."
+
+            return True, "Верно!"
+
         return check_numeric(str(user_input), task.correct_answer)
     if task.answer_type == "text":
         return check_text(str(user_input), str(task.correct_answer))

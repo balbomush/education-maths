@@ -236,6 +236,9 @@ def generate_grade6() -> List[TaskDef]:
     pairs = [(4, 8), (6, 9), (10, 25), (9, 12), (14, 21)]
     for num, den in pairs:
         text = f"Сократи дробь {num}/{den} до несократимого вида."
+        g = math.gcd(num, den)
+        simple_num = num // g
+        simple_den = den // g
         tasks.append(
             TaskDef(
                 id=make_id(6, idx),
@@ -243,7 +246,7 @@ def generate_grade6() -> List[TaskDef]:
                 topic="дроби",
                 text=text,
                 answer_type="numeric",
-                correct_answer=f"{num // 2}/{den // 2}" if num % 2 == 0 and den % 2 == 0 else f"{num}/{den}",
+                correct_answer=f"{simple_num}/{simple_den}",
                 difficulty=2,
                 solution_hint="Раздели числитель и знаменатель на их наибольший общий делитель.",
             )
@@ -264,25 +267,6 @@ def generate_grade6() -> List[TaskDef]:
                 correct_answer=f"{improper_num}/{den}",
                 difficulty=2,
                 solution_hint="Умножь целую часть на знаменатель и прибавь числитель.",
-            )
-        )
-        idx += 1
-
-    # проценты
-    percent_cases = [(100, 10), (200, 25), (150, 20), (80, 5), (90, 30)]
-    for value, p in percent_cases:
-        text = f"Найди {p}% от числа {value}."
-        correct = value * p / 100
-        tasks.append(
-            TaskDef(
-                id=make_id(6, idx),
-                grade=6,
-                topic="проценты",
-                text=text,
-                answer_type="numeric",
-                correct_answer=correct,
-                difficulty=2,
-                solution_hint="Умножь число на процент и раздели на 100.",
             )
         )
         idx += 1
@@ -345,26 +329,6 @@ def generate_grade6() -> List[TaskDef]:
         )
         idx += 1
 
-    # проценты
-    while topic_count("проценты") < 500:
-        value = 50 + (idx * 7) % 950
-        p = 5 + (idx * 3) % 45
-        text = f"Найди {p}% от числа {value}."
-        correct = value * p / 100
-        tasks.append(
-            TaskDef(
-                id=make_id(6, idx),
-                grade=6,
-                topic="проценты",
-                text=text,
-                answer_type="numeric",
-                correct_answer=correct,
-                difficulty=2,
-                solution_hint="Умножь число на процент и раздели на 100.",
-            )
-        )
-        idx += 1
-
     # уравнения
     while topic_count("уравнения") < 500:
         a = 2 + (idx * 2) % 9
@@ -394,45 +358,6 @@ def generate_grade7() -> List[TaskDef]:
     tasks: List[TaskDef] = []
     idx = 1
 
-    # пропорции
-    triples = [(2, 5, 8), (3, 4, 6), (5, 2, 15)]
-    for a, b, c in triples:
-        # a : b = c : x => x = b * c / a
-        x = b * c / a
-        text = f"Реши пропорцию: {a} : {b} = {c} : x. Найди x."
-        tasks.append(
-            TaskDef(
-                id=make_id(7, idx),
-                grade=7,
-                topic="пропорции",
-                text=text,
-                answer_type="numeric",
-                correct_answer=x,
-                difficulty=2,
-                solution_hint="Используй основное свойство пропорции: произведения крайних и средних членов равны.",
-            )
-        )
-        idx += 1
-
-    # проценты сложнее
-    percent_cases = [(80, 15), (250, 18), (320, 12)]
-    for value, p in percent_cases:
-        text = f"Цена товара {value} руб. Её увеличили на {p}%. Сколько стала стоить товар?"
-        new_price = value * (100 + p) / 100
-        tasks.append(
-            TaskDef(
-                id=make_id(7, idx),
-                grade=7,
-                topic="проценты",
-                text=text,
-                answer_type="numeric",
-                correct_answer=new_price,
-                difficulty=2,
-                solution_hint="Найди {p}% от числа и прибавь к исходной цене.".format(p=p),
-            )
-        )
-        idx += 1
-
     # линейные уравнения
     eq_cases = [(2, 3, 11), (3, 4, 19), (5, -2, 18)]
     for a, b, c in eq_cases:
@@ -456,47 +381,6 @@ def generate_grade7() -> List[TaskDef]:
     def topic_count(name: str) -> int:
         return sum(1 for t in tasks if t.topic == name)
 
-    # пропорции
-    while topic_count("пропорции") < 500:
-        a = 2 + (idx * 2) % 20
-        b = 3 + (idx * 3) % 20
-        c = 4 + (idx * 5) % 20
-        x = b * c / a
-        text = f"Реши пропорцию: {a} : {b} = {c} : x. Найди x."
-        tasks.append(
-            TaskDef(
-                id=make_id(7, idx),
-                grade=7,
-                topic="пропорции",
-                text=text,
-                answer_type="numeric",
-                correct_answer=x,
-                difficulty=2,
-                solution_hint="Используй основное свойство пропорции: произведения крайних и средних членов равны.",
-            )
-        )
-        idx += 1
-
-    # проценты
-    while topic_count("проценты") < 500:
-        value = 100 + (idx * 11) % 900
-        p = 5 + (idx * 4) % 45
-        text = f"Цена товара {value} руб. Её увеличили на {p}%. Сколько стала стоить товар?"
-        new_price = value * (100 + p) / 100
-        tasks.append(
-            TaskDef(
-                id=make_id(7, idx),
-                grade=7,
-                topic="проценты",
-                text=text,
-                answer_type="numeric",
-                correct_answer=new_price,
-                difficulty=2,
-                solution_hint=f"Найди {p}% от числа и прибавь к исходной цене.",
-            )
-        )
-        idx += 1
-
     # уравнения
     while topic_count("уравнения") < 500:
         a = 2 + (idx * 3) % 9
@@ -514,6 +398,36 @@ def generate_grade7() -> List[TaskDef]:
                 correct_answer=x_val,
                 difficulty=2,
                 solution_hint="Перенеси свободный член и раздели на коэффициент при x.",
+            )
+        )
+        idx += 1
+
+    # дробные уравнения (уравнения с дробями вида (ax + b)/m + (cx + d)/n = k)
+    while topic_count("дробные уравнения") < 500:
+        x_val = -10 + (idx * 2) % 21
+        a = 1 + (idx * 3) % 5
+        c = 1 + (idx * 5) % 5
+        m = 2 + (idx % 4)
+        n = 2 + ((idx + 1) % 4)
+        b = (idx * 7) % 10
+        d = (idx * 11) % 10
+        # подберём k так, чтобы уравнение было верным при выбранном x_val
+        left_value = (a * x_val + b) / m + (c * x_val + d) / n
+        k = left_value
+        text = (
+            f"Реши уравнение: ({a}x + {b})/{m} + ({c}x + {d})/{n} = {k}. "
+            "Введи значение x."
+        )
+        tasks.append(
+            TaskDef(
+                id=make_id(7, idx),
+                grade=7,
+                topic="дробные уравнения",
+                text=text,
+                answer_type="numeric",
+                correct_answer=x_val,
+                difficulty=3,
+                solution_hint="Приведи дроби к общему знаменателю и реши получившееся линейное уравнение.",
             )
         )
         idx += 1
@@ -550,59 +464,6 @@ def generate_grade8() -> List[TaskDef]:
         )
         idx += 1
 
-    # степени и корни
-    pow_cases = [(2, 3), (5, 2), (10, 2), (3, 4)]
-    for base, p in pow_cases:
-        text = f"Вычисли: {base}^{p}."
-        tasks.append(
-            TaskDef(
-                id=make_id(8, idx),
-                grade=8,
-                topic="степени и корни",
-                text=text,
-                answer_type="numeric",
-                correct_answer=base**p,
-                difficulty=2,
-                solution_hint="Перемножь основание само на себя нужное количество раз.",
-            )
-        )
-        idx += 1
-
-    root_cases = [4, 9, 16, 25, 36]
-    for v in root_cases:
-        text = f"Найди значение выражения: √{v}."
-        tasks.append(
-            TaskDef(
-                id=make_id(8, idx),
-                grade=8,
-                topic="степени и корни",
-                text=text,
-                answer_type="numeric",
-                correct_answer=int(v**0.5),
-                difficulty=1,
-                solution_hint="Подумай, какое число в квадрате даёт это значение.",
-            )
-        )
-        idx += 1
-
-    # простая геометрия: площадь прямоугольника
-    rects = [(3, 7), (4, 9), (5, 6), (8, 2)]
-    for a, b in rects:
-        text = f"Найди площадь прямоугольника со сторонами {a} см и {b} см."
-        tasks.append(
-            TaskDef(
-                id=make_id(8, idx),
-                grade=8,
-                topic="геометрия",
-                text=text,
-                answer_type="numeric",
-                correct_answer=a * b,
-                difficulty=1,
-                solution_hint="Площадь прямоугольника равна произведению его сторон.",
-            )
-        )
-        idx += 1
-
     def topic_count(name: str) -> int:
         return sum(1 for t in tasks if t.topic == name)
 
@@ -625,52 +486,6 @@ def generate_grade8() -> List[TaskDef]:
                 correct_answer=r1,
                 difficulty=3,
                 solution_hint="Вырази коэффициенты через корни или найди дискриминант и реши по формуле.",
-            )
-        )
-        idx += 1
-
-    # степени и корни
-    while topic_count("степени и корни") < 500:
-        base = 2 + (idx % 9)
-        p = 2 + (idx % 4)
-        if idx % 3 == 0:
-            text = f"Вычисли: {base}^{p}."
-            correct = base**p
-            hint = "Перемножь основание само на себя нужное количество раз."
-        else:
-            n = (base * base)
-            text = f"Найди значение выражения: √{n}."
-            correct = int(n**0.5)
-            hint = "Подумай, какое число в квадрате даёт это значение."
-        tasks.append(
-            TaskDef(
-                id=make_id(8, idx),
-                grade=8,
-                topic="степени и корни",
-                text=text,
-                answer_type="numeric",
-                correct_answer=correct,
-                difficulty=2,
-                solution_hint=hint,
-            )
-        )
-        idx += 1
-
-    # геометрия
-    while topic_count("геометрия") < 500:
-        a = 2 + (idx * 2) % 20
-        b = 3 + (idx * 3) % 20
-        text = f"Найди площадь прямоугольника со сторонами {a} см и {b} см."
-        tasks.append(
-            TaskDef(
-                id=make_id(8, idx),
-                grade=8,
-                topic="геометрия",
-                text=text,
-                answer_type="numeric",
-                correct_answer=a * b,
-                difficulty=1,
-                solution_hint="Площадь прямоугольника равна произведению его сторон.",
             )
         )
         idx += 1
@@ -725,24 +540,6 @@ def generate_grade9() -> List[TaskDef]:
         )
         idx += 1
 
-    # геометрия: теорема Пифагора
-    triples = [(3, 4, 5), (5, 12, 13), (8, 15, 17)]
-    for cat1, cat2, hyp in triples:
-        text = f"Катеты прямоугольного треугольника равны {cat1} см и {cat2} см. Найди гипотенузу."
-        tasks.append(
-            TaskDef(
-                id=make_id(9, idx),
-                grade=9,
-                topic="геометрия",
-                text=text,
-                answer_type="numeric",
-                correct_answer=hyp,
-                difficulty=2,
-                solution_hint="Используй теорему Пифагора: c² = a² + b².",
-            )
-        )
-        idx += 1
-
     def topic_count(name: str) -> int:
         return sum(1 for t in tasks if t.topic == name)
 
@@ -785,29 +582,6 @@ def generate_grade9() -> List[TaskDef]:
                 correct_answer=r1,
                 difficulty=3,
                 solution_hint="Найди дискриминант и вычисли корни по формуле.",
-            )
-        )
-        idx += 1
-
-    # геометрия (Пифагор и обратные задачи)
-    while topic_count("геометрия") < 500:
-        a = 3 + (idx * 2) % 20
-        b = 4 + (idx * 3) % 20
-        c_val = int(math.sqrt(a * a + b * b))
-        text = (
-            f"Катеты прямоугольного треугольника равны {a} см и {b} см. "
-            "Найди гипотенузу."
-        )
-        tasks.append(
-            TaskDef(
-                id=make_id(9, idx),
-                grade=9,
-                topic="геометрия",
-                text=text,
-                answer_type="numeric",
-                correct_answer=c_val,
-                difficulty=2,
-                solution_hint="Используй теорему Пифагора: c² = a² + b².",
             )
         )
         idx += 1

@@ -2,14 +2,23 @@ from __future__ import annotations
 
 import csv
 import random
+import re
 import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, ttk
 from typing import List, Optional
 
 from app.core.checker import check_task_answer
-from app.core.progress import get_topic_grade_stats, get_topic_stats, update_progress
-from app.core.tasks_loader import Task, get_available_grades, get_topics_for_grade, load_tasks
+from app.core.progress import (
+    get_recent_task_ids_for_topic,
+    get_sessions,
+    get_session_task_stats,
+    get_topic_grade_stats,
+    get_topic_stats,
+    start_session,
+    update_progress,
+)
+from app.core.tasks_loader import Task, load_tasks
 
 
 class MainMenuFrame(ttk.Frame):
@@ -18,34 +27,14 @@ class MainMenuFrame(ttk.Frame):
         self.on_start = on_start
         self.on_show_progress = on_show_progress
 
-        self.grade_var = tk.IntVar(value=5)
         self.topic_var = tk.StringVar()
-        self.difficulty_var = tk.StringVar(value="Любая")
         self.count_var = tk.StringVar(value="10")
 
-        ttk.Label(self, text="Выбери класс:").grid(row=0, column=0, sticky="w", padx=8, pady=4)
-        self.grade_combo = ttk.Combobox(self, textvariable=self.grade_var, state="readonly", width=10)
-        grades = get_available_grades() or [5]
-        self.grade_combo["values"] = grades
-        self.grade_combo.set(grades[0])
-        self.grade_combo.grid(row=0, column=1, sticky="w", padx=8, pady=4)
-        self.grade_combo.bind("<<ComboboxSelected>>", self._on_grade_changed)
+        ttk.Label(self, text="Тема:").grid(row=0, column=0, sticky="w", padx=8, pady=4)
+        self.topic_combo = ttk.Combobox(self, textvariable=self.topic_var, state="readonly", width=40)
+        self.topic_combo.grid(row=0, column=1, sticky="w", padx=8, pady=4)
 
-        ttk.Label(self, text="Тема:").grid(row=1, column=0, sticky="w", padx=8, pady=4)
-        self.topic_combo = ttk.Combobox(self, textvariable=self.topic_var, state="readonly", width=30)
-        self.topic_combo.grid(row=1, column=1, sticky="w", padx=8, pady=4)
-
-        ttk.Label(self, text="Сложность:").grid(row=2, column=0, sticky="w", padx=8, pady=4)
-        self.difficulty_combo = ttk.Combobox(
-            self,
-            textvariable=self.difficulty_var,
-            state="readonly",
-            width=30,
-            values=["Любая", "1: легко", "2: средне", "3: сложно"],
-        )
-        self.difficulty_combo.grid(row=2, column=1, sticky="w", padx=8, pady=4)
-
-        ttk.Label(self, text="Сколько задач за сессию:").grid(row=3, column=0, sticky="w", padx=8, pady=4)
+        ttk.Label(self, text="Сколько задач за сессию:").grid(row=1, column=0, sticky="w", padx=8, pady=4)
         self.count_combo = ttk.Combobox(
             self,
             textvariable=self.count_var,
@@ -53,40 +42,28 @@ class MainMenuFrame(ttk.Frame):
             width=30,
             values=["5", "10", "20", "Все"],
         )
-        self.count_combo.grid(row=3, column=1, sticky="w", padx=8, pady=4)
+        self.count_combo.grid(row=1, column=1, sticky="w", padx=8, pady=4)
         self.count_combo.set("10")
 
-        self._refresh_topics()
+        self._init_topics()
 
         start_btn = ttk.Button(self, text="Начать тренировку", command=self._start_clicked)
-        start_btn.grid(row=4, column=0, columnspan=2, pady=(12, 4), padx=8, sticky="ew")
+        start_btn.grid(row=2, column=0, columnspan=2, pady=(12, 4), padx=8, sticky="ew")
 
         progress_btn = ttk.Button(self, text="Показать прогресс", command=self.on_show_progress)
-        progress_btn.grid(row=5, column=0, columnspan=2, pady=(4, 8), padx=8, sticky="ew")
+        progress_btn.grid(row=3, column=0, columnspan=2, pady=(4, 8), padx=8, sticky="ew")
 
         for i in range(2):
             self.columnconfigure(i, weight=1)
 
-    def _on_grade_changed(self, event=None):
-        self._refresh_topics()
-
-    def _refresh_topics(self):
-        grade = int(self.grade_var.get())
-        topics = get_topics_for_grade(grade)
+    def _init_topics(self):
+        """Собирает список всех тем из банка задач (без выбора класса)."""
+        all_tasks = load_tasks()
+        topics = sorted({t.topic for t in all_tasks})
         if not topics:
             topics = ["арифметика"]
         self.topic_combo["values"] = topics
         self.topic_combo.set(topics[0])
-
-    def _parse_difficulty(self) -> Optional[int]:
-        value = self.difficulty_var.get()
-        if value == "Любая":
-            return None
-        try:
-            number_part = value.split(":", 1)[0].strip()
-            return int(number_part)
-        except ValueError:
-            return None
 
     def _parse_count(self) -> Optional[int]:
         value = self.count_var.get()
@@ -98,11 +75,10 @@ class MainMenuFrame(ttk.Frame):
             return None
 
     def _start_clicked(self):
-        grade = int(self.grade_var.get())
         topic = self.topic_var.get()
-        difficulty = self._parse_difficulty()
         count = self._parse_count()
-        self.on_start(grade, topic, difficulty, count)
+        # grade не используем — работаем по всем классам для выбранной темы
+        self.on_start(None, topic, None, count)
 
 
 class TaskFrame(ttk.Frame):
@@ -113,6 +89,7 @@ class TaskFrame(ttk.Frame):
         self.tasks: List[Task] = []
         self.current_index: int = 0
         self._wrong_attempts: int = 0
+        self.session_id: Optional[str] = None
 
         self.task_label = ttk.Label(self, text="", wraplength=500, justify="left")
         self.task_label.grid(row=0, column=0, columnspan=2, sticky="w", padx=8, pady=8)
@@ -147,11 +124,12 @@ class TaskFrame(ttk.Frame):
         for i in range(2):
             self.columnconfigure(i, weight=1)
 
-    def start_session(self, tasks: List[Task]):
+    def start_session(self, tasks: List[Task], session_id: Optional[str] = None):
         self.tasks = tasks[:]
         random.shuffle(self.tasks)
         self.current_index = 0
         self._wrong_attempts = 0
+        self.session_id = session_id
         if not self.tasks:
             messagebox.showinfo("Нет задач", "Для выбранного класса и темы пока нет задач.")
             self.on_back_to_menu()
@@ -171,8 +149,14 @@ class TaskFrame(ttk.Frame):
         self._wrong_attempts = 0
 
         task = self.tasks[self.current_index]
-        header = f"Класс {task.grade}, тема: {task.topic} (сложность {task.difficulty})\n\n"
-        self.task_label.config(text=header + task.text)
+
+        # лёгкое форматирование дробей в тексте (1/2 -> 1⁄2)
+        display_text = re.sub(r"(\d+)\s*/\s*(\d+)", r"\1⁄\2", task.text)
+        # корректный вид выражений с отрицательными числами: 5x + -8 -> 5x - 8
+        display_text = display_text.replace("+ -", "- ").replace("- -", "+ ")
+
+        header = f"Тема: {task.topic} (класс {task.grade}, сложность {task.difficulty})\n\n"
+        self.task_label.config(text=header + display_text)
 
         if task.answer_type == "multiple_choice" and task.options:
             # для задач с выбором вариантов убираем текстовое поле
@@ -207,7 +191,7 @@ class TaskFrame(ttk.Frame):
         user_input = self._collect_user_input(task)
         is_correct, feedback = check_task_answer(task, user_input)
         self.feedback_label.config(text=feedback, foreground="green" if is_correct else "red")
-        update_progress(task, is_correct)
+        update_progress(task, is_correct, session_id=self.session_id)
         if is_correct:
             self._wrong_attempts = 0
             self.after(700, self._next_task)
@@ -241,33 +225,73 @@ class ProgressFrame(ttk.Frame):
         super().__init__(master)
         self.on_back = on_back
 
-        ttk.Label(self, text="Прогресс по темам и классам").grid(row=0, column=0, sticky="w", padx=8, pady=8)
+        ttk.Label(self, text="Прогресс").grid(row=0, column=0, sticky="w", padx=8, pady=8)
 
-        self.tree = ttk.Treeview(
-            self,
+        self.notebook = ttk.Notebook(self)
+        self.notebook.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=8, pady=4)
+
+        # Вкладка сводки по темам
+        self.summary_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.summary_frame, text="По темам")
+
+        self.summary_tree = ttk.Treeview(
+            self.summary_frame,
             columns=("grade", "topic", "attempts", "success"),
             show="headings",
             height=8,
         )
-        self.tree.heading("grade", text="Класс")
-        self.tree.heading("topic", text="Тема")
-        self.tree.heading("attempts", text="Попыток")
-        self.tree.heading("success", text="Успешность")
-        self.tree.column("grade", width=60, anchor="center")
-        self.tree.column("topic", width=200)
-        self.tree.column("attempts", width=80, anchor="center")
-        self.tree.column("success", width=100, anchor="center")
-        self.tree.grid(row=1, column=0, sticky="nsew", padx=8, pady=4)
+        self.summary_tree.heading("grade", text="Класс")
+        self.summary_tree.heading("topic", text="Тема")
+        self.summary_tree.heading("attempts", text="Попыток")
+        self.summary_tree.heading("success", text="Успешность")
+        self.summary_tree.column("grade", width=60, anchor="center")
+        self.summary_tree.column("topic", width=200)
+        self.summary_tree.column("attempts", width=80, anchor="center")
+        self.summary_tree.column("success", width=100, anchor="center")
+        self.summary_tree.grid(row=0, column=0, sticky="nsew")
 
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.tree.yview)
-        scrollbar.grid(row=1, column=1, sticky="ns", pady=4)
-        self.tree.configure(yscrollcommand=scrollbar.set)
+        summary_scroll = ttk.Scrollbar(self.summary_frame, orient="vertical", command=self.summary_tree.yview)
+        summary_scroll.grid(row=0, column=1, sticky="ns")
+        self.summary_tree.configure(yscrollcommand=summary_scroll.set)
+
+        self.summary_frame.columnconfigure(0, weight=1)
+        self.summary_frame.rowconfigure(0, weight=1)
+
+        # Вкладка сессий
+        self.sessions_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.sessions_frame, text="Сессии")
+
+        self.sessions_tree = ttk.Treeview(
+            self.sessions_frame,
+            columns=("date", "topic", "tasks", "success"),
+            show="headings",
+            height=8,
+        )
+        self.sessions_tree.heading("date", text="Дата")
+        self.sessions_tree.heading("topic", text="Тема")
+        self.sessions_tree.heading("tasks", text="Задач")
+        self.sessions_tree.heading("success", text="Успешность")
+        self.sessions_tree.column("date", width=110, anchor="center")
+        self.sessions_tree.column("topic", width=200)
+        self.sessions_tree.column("tasks", width=70, anchor="center")
+        self.sessions_tree.column("success", width=100, anchor="center")
+        self.sessions_tree.grid(row=0, column=0, sticky="nsew")
+
+        sessions_scroll = ttk.Scrollbar(self.sessions_frame, orient="vertical", command=self.sessions_tree.yview)
+        sessions_scroll.grid(row=0, column=1, sticky="ns")
+        self.sessions_tree.configure(yscrollcommand=sessions_scroll.set)
+
+        self.sessions_frame.columnconfigure(0, weight=1)
+        self.sessions_frame.rowconfigure(0, weight=1)
 
         btn_back = ttk.Button(self, text="Назад в меню", command=self.on_back)
         btn_back.grid(row=2, column=0, sticky="ew", padx=8, pady=(4, 8))
 
-        btn_export = ttk.Button(self, text="Экспорт CSV", command=self.export_csv)
+        btn_export = ttk.Button(self, text="Экспорт CSV (с задачами)", command=self.export_csv)
         btn_export.grid(row=2, column=1, sticky="ew", padx=8, pady=(4, 8))
+
+        btn_session_details = ttk.Button(self, text="Показать задачи сессии", command=self.show_session_details)
+        btn_session_details.grid(row=3, column=0, columnspan=2, sticky="ew", padx=8, pady=(0, 8))
 
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
@@ -279,21 +303,41 @@ class ProgressFrame(ttk.Frame):
         all_tasks = load_tasks()
         stats = get_topic_grade_stats(all_tasks)
 
-        for row in self.tree.get_children():
-            self.tree.delete(row)
+        for row in self.summary_tree.get_children():
+            self.summary_tree.delete(row)
         for (grade, topic), tp in sorted(stats.items()):
             percent = int(tp.success_rate * 100)
-            self.tree.insert("", "end", values=(grade, topic, tp.attempts, f"{percent}%"))
+            self.summary_tree.insert("", "end", values=(grade, topic, tp.attempts, f"{percent}%"))
+
+        # обновляем список сессий
+        for row in self.sessions_tree.get_children():
+            self.sessions_tree.delete(row)
+
+        sessions = get_sessions()
+        for session in sorted(sessions, key=lambda s: s.get("started_at", ""), reverse=True):
+            sid = session.get("id")
+            started_at = session.get("started_at", "")
+            date = started_at.split("T")[0] if "T" in started_at else started_at
+            topic = session.get("topic", "")
+            stasks = session.get("tasks", {})
+            attempts = 0
+            correct = 0
+            for rec in stasks.values():
+                attempts += int(rec.get("attempts", 0))
+                correct += int(rec.get("correct_attempts", 0))
+            success = int((correct / attempts) * 100) if attempts else 0
+            self.sessions_tree.insert(
+                "",
+                "end",
+                iid=sid,
+                values=(date, topic, len(stasks), f"{success}%"),
+            )
 
     def export_csv(self):
         from app.core.tasks_loader import load_tasks
 
         all_tasks = load_tasks()
         stats = get_topic_grade_stats(all_tasks)
-        if not stats:
-            messagebox.showinfo("Экспорт", "Пока нет данных для экспорта.")
-            return
-
         file_path = filedialog.asksaveasfilename(
             title="Сохранить статистику",
             defaultextension=".csv",
@@ -304,12 +348,122 @@ class ProgressFrame(ttk.Frame):
 
         with open(file_path, "w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f, delimiter=";")
+            # Сводка по темам
             writer.writerow(["Класс", "Тема", "Попыток", "Успешность (%)"])
             for (grade, topic), tp in sorted(stats.items()):
                 percent = int(tp.success_rate * 100)
                 writer.writerow([grade, topic, tp.attempts, percent])
 
+            # Пустая строка-разделитель
+            writer.writerow([])
+
+            # Подробности по задачам внутри сессий
+            writer.writerow(
+                [
+                    "Дата",
+                    "ID сессии",
+                    "Тема сессии",
+                    "ID задачи",
+                    "Класс задачи",
+                    "Тема задачи",
+                    "Текст задачи",
+                    "Попыток",
+                    "Верных",
+                    "Успешность (%)",
+                ]
+            )
+
+            all_tasks_map = {t.id: t for t in all_tasks}
+            sessions = get_sessions()
+            for session in sorted(sessions, key=lambda s: s.get("started_at", ""), reverse=True):
+                sid = session.get("id")
+                started_at = session.get("started_at", "")
+                date = started_at.split("T")[0] if "T" in started_at else started_at
+                topic = session.get("topic", "")
+                per_task = get_session_task_stats(sid)
+                for task_id, tp in per_task.items():
+                    task = all_tasks_map.get(task_id)
+                    if not task:
+                        continue
+                    percent = int(tp.success_rate * 100) if tp.attempts else 0
+                    writer.writerow(
+                        [
+                            date,
+                            sid,
+                            topic,
+                            task.id,
+                            task.grade,
+                            task.topic,
+                            task.text,
+                            tp.attempts,
+                            tp.correct_attempts,
+                            percent,
+                        ]
+                    )
+
         messagebox.showinfo("Экспорт", f"Статистика сохранена в файл:\n{file_path}")
+
+    def show_session_details(self):
+        """Открывает окно с подробностями по выбранной сессии."""
+        selection = self.sessions_tree.selection()
+        if not selection:
+            messagebox.showinfo("Сессии", "Сначала выбери сессию в списке.")
+            return
+        session_id = selection[0]
+        task_stats = get_session_task_stats(session_id)
+        if not task_stats:
+            messagebox.showinfo("Сессии", "Нет данных по задачам для выбранной сессии.")
+            return
+
+        from app.core.tasks_loader import load_tasks
+
+        all_tasks = {t.id: t for t in load_tasks()}
+
+        window = tk.Toplevel(self)
+        window.title("Задачи сессии")
+        window.geometry("700x400")
+
+        tree = ttk.Treeview(
+            window,
+            columns=("id", "grade", "topic", "text", "attempts", "success"),
+            show="headings",
+            height=12,
+        )
+        tree.heading("id", text="ID")
+        tree.heading("grade", text="Класс")
+        tree.heading("topic", text="Тема")
+        tree.heading("text", text="Задача")
+        tree.heading("attempts", text="Попыток")
+        tree.heading("success", text="Успешность")
+        tree.column("id", width=80, anchor="center")
+        tree.column("grade", width=60, anchor="center")
+        tree.column("topic", width=150)
+        tree.column("text", width=260)
+        tree.column("attempts", width=80, anchor="center")
+        tree.column("success", width=100, anchor="center")
+        tree.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+
+        scrollbar = ttk.Scrollbar(window, orient="vertical", command=tree.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns", pady=8)
+        tree.configure(yscrollcommand=scrollbar.set)
+
+        for task_id, tp in task_stats.items():
+            task = all_tasks.get(task_id)
+            if not task:
+                continue
+            percent = int(tp.success_rate * 100) if tp.attempts else 0
+            # укороченный текст задачи для списка
+            text_short = task.text
+            if len(text_short) > 80:
+                text_short = text_short[:77] + "..."
+            tree.insert(
+                "",
+                "end",
+                values=(task.id, task.grade, task.topic, text_short, tp.attempts, f"{percent}%"),
+            )
+
+        window.columnconfigure(0, weight=1)
+        window.rowconfigure(0, weight=1)
 
 
 class App(tk.Tk):
@@ -362,13 +516,11 @@ class App(tk.Tk):
         self.main_menu.tkraise()
 
     def start_training(self, grade: int, topic: str, difficulty: Optional[int], count: Optional[int]):
-        tasks = load_tasks(grade=grade, topic=topic)
+        # загружаем все задачи выбранной темы из всех классов
+        tasks = load_tasks(topic=topic)
 
-        if difficulty is not None:
-            tasks = [t for t in tasks if t.difficulty == difficulty]
-
-        # адаптивная сложность только если не задана явно
-        if tasks and difficulty is None:
+        # адаптивная сложность: выбираем "целевую" сложность по статистике
+        if tasks:
             topic_stats = get_topic_stats(tasks)
             tp = topic_stats.get(topic)
             if tp:
@@ -381,11 +533,28 @@ class App(tk.Tk):
                     target_diff = 2
                 tasks.sort(key=lambda t: abs(t.difficulty - target_diff))
 
-        if count is not None and len(tasks) > count:
-            tasks = random.sample(tasks, k=count)
+        # избегаем недавних задач этой темы
+        recent_ids = get_recent_task_ids_for_topic(topic, max_sessions=3)
+        fresh_tasks = [t for t in tasks if t.id not in recent_ids]
+
+        if count is not None:
+            # если свежих задач меньше, чем нужно, дополним их старыми
+            if len(fresh_tasks) >= count:
+                tasks_for_session = random.sample(fresh_tasks, k=count)
+            else:
+                remaining = count - len(fresh_tasks)
+                old_tasks = [t for t in tasks if t.id in recent_ids]
+                if len(old_tasks) > remaining:
+                    old_tasks = random.sample(old_tasks, k=remaining)
+                tasks_for_session = fresh_tasks + old_tasks
+        else:
+            tasks_for_session = fresh_tasks or tasks
+
+        # создаём новую сессию
+        session_id = start_session(topic)
 
         self.task_frame.tkraise()
-        self.task_frame.start_session(tasks)
+        self.task_frame.start_session(tasks_for_session, session_id=session_id)
 
     def show_progress(self):
         self.progress_frame.refresh()
