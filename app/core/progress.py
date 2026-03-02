@@ -1,14 +1,36 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Tuple
 
-from .tasks_loader import DATA_DIR, Task
+from .tasks_loader import Task
 
 
-PROGRESS_PATH = DATA_DIR / "progress.json"
+def _get_progress_path() -> Path:
+    """
+    Возвращает путь к файлу прогресса.
+
+    Для собранного .exe нельзя писать внутрь каталога с ресурсами (_MEIPASS),
+    поэтому используем пользовательскую директорию (AppData / HOME).
+    В режиме разработки файл лежит рядом с проектом в подкаталоге data/.
+    """
+    base_dir = Path.cwd()
+    # Если приложение запущено из замороженного .exe, кладём прогресс в %APPDATA%
+    if getattr(__import__("sys"), "frozen", False):
+        appdata = os.getenv("APPDATA")
+        if appdata:
+            base_dir = Path(appdata) / "education-maths"
+    else:
+        # режим разработки: хранить в data/progress.json в корне проекта
+        project_root = Path(__file__).resolve().parents[2]
+        base_dir = project_root / "data"
+    return base_dir / "progress.json"
+
+
+PROGRESS_PATH = _get_progress_path()
 
 
 @dataclass

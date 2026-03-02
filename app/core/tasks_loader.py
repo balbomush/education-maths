@@ -1,12 +1,26 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, List, Optional
 
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+def _get_base_dir() -> Path:
+    """
+    Определяет базовую директорию проекта.
+
+    - В режиме разработки: корень репозитория.
+    - В собранном .exe (PyInstaller, onefile): временная директория _MEIPASS,
+      куда распакованы все ресурсы (включая папку data).
+    """
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parents[2]
+
+
+BASE_DIR = _get_base_dir()
 DATA_DIR = BASE_DIR / "data"
 
 
