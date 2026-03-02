@@ -10,3 +10,10 @@ data/progress.json
 .venv/
 venv/
 
+# артефакты сборки PyInstaller
+build/
+*.spec
+dist/*
+!dist/education-maths.exe
+
+

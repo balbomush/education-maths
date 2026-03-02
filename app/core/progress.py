@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Tuple
 
-from .tasks_loader import Task, DATA_DIR
+from .tasks_loader import DATA_DIR, Task
 
 
 PROGRESS_PATH = DATA_DIR / "progress.json"
@@ -73,4 +73,24 @@ def get_topic_stats(tasks: list[Task]) -> Dict[str, TaskProgress]:
         stats[topic] = tp
 
     return stats
+
+
+def get_topic_grade_stats(tasks: list[Task]) -> Dict[Tuple[int, str], TaskProgress]:
+    """Подсчёт прогресса по темам с учётом класса."""
+    data = _load_raw_progress()
+    stats: Dict[Tuple[int, str], TaskProgress] = {}
+    tasks_by_id = {t.id: t for t in tasks}
+
+    for task_id, rec in data.items():
+        task = tasks_by_id.get(task_id)
+        if not task:
+            continue
+        key = (task.grade, task.topic)
+        tp = stats.get(key, TaskProgress())
+        tp.attempts += int(rec.get("attempts", 0))
+        tp.correct_attempts += int(rec.get("correct_attempts", 0))
+        stats[key] = tp
+
+    return stats
+
 
