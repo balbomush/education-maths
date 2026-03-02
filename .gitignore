@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# локальный прогресс обучения
+data/progress.json
+
+# виртуальные окружения
+.venv/
+venv/
+

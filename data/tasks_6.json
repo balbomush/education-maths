@@ -1,0 +1,36 @@
+[
+  {
+    "id": "6_1_1",
+    "grade": 6,
+    "topic": "дроби",
+    "text": "Сократи дробь 4/8 до несократимого вида.",
+    "answer_type": "numeric",
+    "correct_answer": "1/2",
+    "difficulty": 2,
+    "solution_hint": "Раздели числитель и знаменатель на их наибольший общий делитель.",
+    "options": null
+  },
+  {
+    "id": "6_1_2",
+    "grade": 6,
+    "topic": "дроби",
+    "text": "Представь число 3 1/4 в виде неправильной дроби.",
+    "answer_type": "numeric",
+    "correct_answer": "13/4",
+    "difficulty": 2,
+    "solution_hint": "Умножь целую часть на знаменатель и прибавь числитель.",
+    "options": null
+  },
+  {
+    "id": "6_2_1",
+    "grade": 6,
+    "topic": "уравнения",
+    "text": "Реши уравнение: x + 7 = 15. Введи значение x.",
+    "answer_type": "numeric",
+    "correct_answer": 8,
+    "difficulty": 1,
+    "solution_hint": "Перенеси 7 в правую часть с противоположным знаком.",
+    "options": null
+  }
+]
+

@@ -1,0 +1,47 @@
+[
+  {
+    "id": "5_1_1",
+    "grade": 5,
+    "topic": "арифметика",
+    "text": "Вычисли: 12 + 7",
+    "answer_type": "numeric",
+    "correct_answer": 19,
+    "difficulty": 1,
+    "solution_hint": "Сложи десятки и единицы по отдельности.",
+    "options": null
+  },
+  {
+    "id": "5_1_2",
+    "grade": 5,
+    "topic": "арифметика",
+    "text": "Вычисли: 45 - 18",
+    "answer_type": "numeric",
+    "correct_answer": 27,
+    "difficulty": 1,
+    "solution_hint": "Вычитай десятки и единицы по отдельности.",
+    "options": null
+  },
+  {
+    "id": "5_2_1",
+    "grade": 5,
+    "topic": "умножение и деление",
+    "text": "Найди значение выражения: 6 × 7",
+    "answer_type": "numeric",
+    "correct_answer": 42,
+    "difficulty": 1,
+    "solution_hint": "Вспомни таблицу умножения на 7.",
+    "options": null
+  },
+  {
+    "id": "5_3_1",
+    "grade": 5,
+    "topic": "арифметика",
+    "text": "Какое из чисел является чётным?",
+    "answer_type": "multiple_choice",
+    "correct_answer": [1],
+    "difficulty": 1,
+    "solution_hint": "Чётные числа делятся на 2 без остатка.",
+    "options": ["15", "28", "37", "51"]
+  }
+]
+
