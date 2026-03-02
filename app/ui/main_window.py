@@ -188,7 +188,11 @@ class TaskFrame(ttk.Frame):
             if not self.answer_entry.winfo_ismapped():
                 self.answer_entry.grid(row=1, column=0, columnspan=2, sticky="ew", padx=8, pady=4)
 
-        self.answer_entry.focus_set()
+        # фокус ставим на первый доступный элемент ввода
+        if task.answer_type == "multiple_choice" and self.options_checks:
+            self.options_checks[0].focus_set()
+        else:
+            self.answer_entry.focus_set()
 
     def _collect_user_input(self, task: Task):
         if task.answer_type == "multiple_choice" and task.options:
